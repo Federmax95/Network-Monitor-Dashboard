@@ -2,7 +2,7 @@
 
 A **Flask-based web app** for monitoring **ping latency**, **network status**, and **connection speed** in real time.  It displays interactive charts using **Chart.js** and automatically updates data from the Python backend.
 
-
+![Dashboard Screenshot](Asset/Network.png)
 
 
 ## ⚙️ Main Features
@@ -54,4 +54,4 @@ A **Flask-based web app** for monitoring **ping latency**, **network status**, a
    http://[IP_Address_of_the_machine]:5000
    ```
 
-![Dashboard Screenshot](Asset/Network.png)
+
