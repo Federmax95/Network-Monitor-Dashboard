@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Network Monitor Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+<style>
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; transform: scale(0.95); }
+}
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+:root {
+  --bg-dark: #0f1c2c;
+  --bg-light: #1a2a45;
+  --bg-card: #1e2c44;
+  --text-light: #e0e0e0;
+  --text-white: #ffffff;
+  --blue: #36a2eb;
+  --red: #ff6384;
+  --green: #4bc0c0;
+  --border-color: rgba(255, 255, 255, 0.1);
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background: linear-gradient(135deg, var(--bg-dark), var(--bg-light), var(--bg-dark));
+  background-size: 200% 200%;
+  animation: gradientBG 20s ease infinite;
+  color: var(--text-light);
+  overflow-x: hidden;
+}
+
+header {
+  text-align: center;
+  padding: 18px 10px;
+  background-color: rgba(15, 28, 44, 0.8);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 200;
+  border-bottom: 1px solid var(--border-color);
+}
+
+header h1 {
+  margin: 0;
+  font-size: 24px;
+  color: var(--text-white);
+  text-shadow: 1px 1px 6px rgba(0,0,0,0.6);
+}
+
+#control-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  padding: 15px;
+  background-color: rgba(30, 44, 68, 0.85);
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 65px;
+  z-index: 150;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  border-bottom: 1px solid var(--border-color);
+}
+
+#hostBar, #intervalContainer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#networkPanel {
+  display: flex;
+  gap: 20px;
+  font-size: 14px;
+  flex-wrap: wrap;
+}
+#networkPanel p { margin: 0; }
+#networkPanel span { font-weight: bold; color: var(--text-white); }
+
+#hostInput, #intervalInput {
+  padding: 10px;
+  font-size: 15px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background-color: rgba(255,255,255,0.1);
+  color: var(--text-white);
+  width: 220px;
+}
+#intervalInput { width: 70px; }
+#hostInput::placeholder { color: rgba(255,255,255,0.6); }
+
+.btn {
+  padding: 10px 15px;
+  font-size: 15px;
+  border-radius: 6px;
+  border: none;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn i { font-size: 1.1em; }
+.btn-primary { background-color: var(--blue); }
+.btn-primary:hover { background-color: #1a7fd1; }
+.btn-secondary { background-color: var(--green); }
+.btn-secondary:hover { background-color: #3aa0a0; }
+.btn-danger { background-color: var(--red); }
+.btn-danger:hover { background-color: #ff335e; }
+
+#hostMessage {
+  font-size: 14px;
+  text-align: center;
+  padding: 8px;
+  border-radius: 6px;
+  display: none;
+}
+#hostMessage.success {
+  color: #fff;
+  background-color: rgba(75, 192, 192, 0.6);
+  display: block;
+}
+#hostMessage.error {
+  color: #fff;
+  background-color: rgba(255, 99, 132, 0.6);
+  display: block;
+}
+
+.charts-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 40px 15px;
+  padding-top: 170px;
+  max-width: 1800px;
+  margin: 0 auto;
+  gap: 25px;
+}
+
+.host-row {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+  animation: fadeIn 0.5s ease-out;
+}
+.host-row.fading-out {
+  animation: fadeOut 0.4s ease-out forwards;
+}
+
+.host-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.host-label {
+  font-size: 20px;
+  font-weight: bold;
+  color: #aee3ff;
+}
+
+.host-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.charts-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.chart-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.chart-latency {
+  flex: 3 1 500px;
+  min-height: 300px;
+}
+.chart-status {
+  flex: 1 1 200px;
+  min-height: 300px;
+}
+.chart-fails {
+  flex: 1 1 200px;
+  min-height: 300px;
+}
+
+.chart-card h3 {
+  margin: 0 0 5px 0;
+  color: var(--text-white);
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.fail-list {
+  background-color: rgba(255, 99, 132, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+  overflow-y: auto;
+  flex-grow: 1;
+  max-height: 250px;
+  font-size: 14px;
+}
+.fail-list-item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 5px 2px;
+}
+.fail-list-item:last-child { border-bottom: none; }
+
+/* Responsive */
+@media (max-width: 900px) {
+  #control-panel {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px;
+    top: 64px;
+  }
+  #hostBar, #intervalContainer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #hostInput, #intervalInput, #addHostBtn, #setIntervalBtn {
+    width: 100%;
+  }
+  #networkPanel {
+    justify-content: space-around;
+    gap: 10px;
+    padding: 10px;
+    background-color: rgba(0,0,0,0.2);
+    border-radius: 8px;
+  }
+  .charts-grid {
+    padding-top: 360px;
+  }
+}
+
+@media (max-width: 700px) {
+  header h1 { font-size: 20px; }
+  .host-actions button { flex: 1; }
+  .charts-row { flex-direction: column; }
+  .chart-card { min-height: 250px; }
+  .chart-status, .chart-fails {
+    max-height: 280px;
+    align-self: center;
+    width: 90%;
+    max-width: 300px;
+  }
+}
+
+</style>
+</head>
+<body>
+<header>
+<h1>Network Monitor Dashboard</h1>
+</header>
+
+<div id="control-panel">
+  <div id="hostBar">
+    <input type="text" id="hostInput" placeholder="e.g. 8.8.8.8 or google.com">
+    <button id="addHostBtn" class="btn btn-primary">
+      <i class="fas fa-plus"></i> Add Host
+    </button>
+  </div>
+  
+  <div id="intervalContainer">
+    <label for="intervalInput" style="color: var(--text-light); font-weight: 500; font-size: 15px;">Set Ping Interval (s):</label>
+    <input type="number" id="intervalInput" value="30" min="5">
+    <button id="setIntervalBtn" class="btn btn-secondary" title="Set Interval">
+      <i class="fas fa-clock"></i> Set
+    </button>
+  </div>
+  
+  <div id="networkPanel">
+    <p><strong>Wi-Fi:</strong> <span id="ssid">...</span></p>
+    <p><strong>Download:</strong> <span id="download">0</span> MB/s</p>
+    <p><strong>Upload:</strong> <span id="upload">0</span> MB/s</p>
+  </div>
+
+  <span id="hostMessage"></span>
+</div>
+
+<div class="charts-grid" id="charts-container"></div>
+
+<script>
+
+let monitoredHosts = {}; 
+let pingTimer;
+let savedInterval = parseInt(localStorage.getItem("pingInterval")) || 30;
+
+Chart.defaults.color = "#e0e0e0";
+Chart.defaults.borderColor = "rgba(255, 255, 255, 0.1)";
+
+async function updateDashboard() {
+  try {
+    const res = await fetch('/api/data');
+    if (!res.ok) throw new Error(`Failed to fetch data: ${res.status}`);
+    const dataByHost = await res.json();
+    const container = document.getElementById("charts-container");
+    const activeHosts = new Set();
+
+    for (const hostName in dataByHost) {
+      activeHosts.add(hostName);
+      const results = dataByHost[hostName] || [];
+
+      if (monitoredHosts[hostName]) {
+
+        updateHostCharts(hostName, results);
+      } else {
+
+        createHostRow(hostName, results, container);
+      }
+    }
+
+    for (const hostName in monitoredHosts) {
+      if (!activeHosts.has(hostName)) {
+        removeHostRow(hostName);
+      }
+    }
+  } catch (error) {
+    console.error("Error updating dashboard:", error);
+
+  }
+}
+
+function createHostRow(hostName, results, container) {
+  const safeId = hostName.replace(/[.\s]/g, "-");
+  const latencyId = `latency-${safeId}`;
+  const statusId = `status-${safeId}`;
+
+  const hostRow = document.createElement("div");
+  hostRow.className = "host-row";
+  hostRow.dataset.host = hostName;
+  hostRow.innerHTML = `
+    <div class="host-header-row">
+      <div class="host-label">Host: ${hostName}</div>
+      <div class="host-actions">
+        <button class="btn btn-danger" onclick="removeHost('${hostName}')">
+          <i class="fas fa-trash-alt"></i> Remove
+        </button>
+        <button class="btn btn-secondary" onclick="clearHostData('${hostName}')">
+          <i class="fas fa-broom"></i> Clear Data
+        </button>
+      </div>
+    </div>
+    <div class="charts-row">
+      <div class="chart-card chart-latency">
+        <h3>Ping Latency (ms)</h3>
+        <canvas id="${latencyId}"></canvas>
+      </div>
+      <div class="chart-card chart-status">
+        <h3>Success / Fail</h3>
+        <canvas id="${statusId}"></canvas>
+      </div>
+      <div class="chart-card chart-fails">
+        <h3>Recent Failed Pings</h3>
+        <div class="fail-list"></div>
+      </div>
+    </div>
+  `;
+  container.appendChild(hostRow);
+
+  const latencyCanvas = hostRow.querySelector(`#${latencyId}`);
+  const statusCanvas = hostRow.querySelector(`#${statusId}`);
+  const failListEl = hostRow.querySelector('.fail-list');
+
+const latencyChart = new Chart(latencyCanvas, {
+    type: 'line',
+    data: { labels: [], datasets: [{ 
+      label: 'Latency (ms)', 
+      data: [], 
+      borderColor: '#36a2eb',
+      backgroundColor: 'rgba(54, 162, 235, 0.2)', 
+      fill: false, 
+      tension: 0.2 
+    }] },
+    options: { responsive: true, maintainAspectRatio: true }
+  });
+
+const statusChart = new Chart(statusCanvas, {
+    type: 'doughnut',
+    data: { labels: ['OK', 'FAIL'], datasets: [{ 
+      data: [0, 0], 
+      backgroundColor: ['#36a2eb', '#ff6384'] // <-- CORRETTO
+    }] },
+    options: { responsive: true, maintainAspectRatio: true }
+  });
+
+  monitoredHosts[hostName] = {
+    latencyChart,
+    statusChart,
+    failListEl,
+    domElement: hostRow
+  };
+
+  updateHostCharts(hostName, results);
+}
+
+function updateHostCharts(hostName, results) {
+  const hostData = monitoredHosts[hostName];
+  if (!hostData) return;
+
+  const labels = results.map(r => new Date(r.timestamp).toLocaleTimeString()).reverse();
+  const latencies = results.map(r => r.latency).reverse();
+  const okCount = results.filter(r => r.status === "OK").length;
+  const failCount = results.filter(r => r.status === "FAIL").length;
+  const failTimes = results.filter(r => r.status === "FAIL")
+                           .map(r => new Date(r.timestamp).toLocaleTimeString())
+                           .reverse();
+
+  hostData.latencyChart.data.labels = labels;
+  hostData.latencyChart.data.datasets[0].data = latencies;
+  hostData.latencyChart.update();
+
+  hostData.statusChart.data.datasets[0].data = [okCount, failCount];
+  hostData.statusChart.update();
+
+  if (failTimes.length > 0) {
+    hostData.failListEl.innerHTML = failTimes.map(t => 
+      `<div class="fail-list-item">❌ ${t}</div>`
+    ).join('');
+  } else {
+    hostData.failListEl.innerHTML = '<div class="fail-list-item" style="opacity: 0.7;">No failed pings</div>';
+  }
+}
+
+function removeHostRow(hostName) {
+  const hostData = monitoredHosts[hostName];
+  if (!hostData) return;
+
+  hostData.latencyChart.destroy();
+  hostData.statusChart.destroy();
+
+  hostData.domElement.classList.add('fading-out');
+  setTimeout(() => {
+    hostData.domElement.remove();
+  }, 400);
+
+  delete monitoredHosts[hostName];
+}
+
+async function updateNetwork() {
+  try {
+    const res = await fetch('/api/network');
+    const data = await res.json();
+    document.getElementById('ssid').innerText = data.ssid || "N/A";
+    document.getElementById('download').innerText = data.download?.toFixed(2) || "0";
+    document.getElementById('upload').innerText = data.upload?.toFixed(2) || "0";
+  } catch (error) {
+    console.error("Error updating network info:", error);
+    document.getElementById('ssid').innerText = "Error";
+  }
+}
+
+async function removeHost(host) {
+  if (!confirm(`Remove host ${host}?`)) return;
+  try {
+    await fetch(`/api/remove_host/${encodeURIComponent(host)}`, { method: 'DELETE' });
+    removeHostRow(host); 
+  } catch (error) {
+    console.error("Failed to remove host:", error);
+    alert("Error removing host.");
+  }
+}
+
+async function clearHostData(host) {
+  if (!confirm(`Clear data for ${host}?`)) return;
+  try {
+    await fetch(`/api/clear_host/${encodeURIComponent(host)}`, { method: 'POST' });
+    updateDashboard(); 
+  } catch (error) {
+    console.error("Failed to clear host data:", error);
+    alert("Error clearing data.");
+  }
+}
+
+document.getElementById("addHostBtn").addEventListener("click", async () => {
+  const host = document.getElementById("hostInput").value.trim();
+  const msg = document.getElementById("hostMessage");
+  msg.className = "";
+  
+  if (!host) {
+    msg.innerText = "Please enter a host or IP address";
+    msg.className = "error";
+    return;
+  }
+  
+  try {
+    const res = await fetch("/api/add_host", { 
+      method: "POST", 
+      headers: {"Content-Type": "application/json"}, 
+      body: JSON.stringify({host}) 
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      msg.innerText = data.message;
+      msg.className = "success";
+      document.getElementById("hostInput").value = "";
+      updateDashboard(); 
+    } else {
+      msg.innerText = data.error || "An unknown error occurred";
+      msg.className = "error";
+    }
+  } catch (error) {
+    msg.innerText = "Failed to connect to server.";
+    msg.className = "error";
+  }
+  setTimeout(() => { msg.className = ""; msg.innerText = ""; }, 3000);
+});
+
+document.getElementById("setIntervalBtn").addEventListener("click", async () => {
+  const interval = parseInt(document.getElementById("intervalInput").value);
+  const btn = document.getElementById("setIntervalBtn");
+  
+  if (isNaN(interval) || interval < 5) {
+    alert("Interval must be at least 5 seconds");
+    return;
+  }
+
+  pingInterval = interval * 1000;
+  clearInterval(pingTimer);
+  pingTimer = setInterval(updateDashboard, pingInterval);
+  localStorage.setItem("pingInterval", interval);
+  
+  btn.innerHTML = '<i class="fas fa-check"></i> Updated!';
+  btn.style.backgroundColor = '#28a745'; 
+  try {
+    const res = await fetch("/api/set_interval", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ interval })
+    });
+    if (!res.ok) throw new Error(`Server error: ${res.status}`);
+  
+  } catch (err) {
+    console.error(err);
+    alert("Interval set on front-end, but failed to update server.");
+    btn.style.backgroundColor = '#dc3545';
+    btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Server Fail';
+  }
+
+  setTimeout(() => {
+    btn.innerHTML = '<i class="fas fa-clock"></i> Set Interval';
+    btn.style.backgroundColor = ''; 
+  }, 2000);
+});
+
+
+function initialize() {
+  document.getElementById("intervalInput").value = savedInterval;
+  pingInterval = savedInterval * 1000;
+  updateDashboard();
+  updateNetwork();
+  
+  pingTimer = setInterval(updateDashboard, pingInterval);
+  setInterval(updateNetwork, 10000); 
+}
+document.addEventListener("DOMContentLoaded", initialize);
+
+</script>
+</body>
+</html>

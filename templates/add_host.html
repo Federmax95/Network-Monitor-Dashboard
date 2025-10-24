@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Network Monitor</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #1e2c44;
+    color: #fff;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+  }
+  #searchContainer {
+    text-align: center;
+  }
+  #hostInput {
+    padding: 10px;
+    font-size: 16px;
+    border-radius: 5px;
+    border: none;
+    width: 250px;
+  }
+  #addHostBtn {
+    padding: 10px 15px;
+    font-size: 16px;
+    border-radius: 5px;
+    border: none;
+    margin-left: 10px;
+    background-color: #ff4c4c;
+    color: white;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  #addHostBtn:hover {
+    background-color: #ff1c1c;
+  }
+</style>
+</head>
+<body>
+<div id="searchContainer">
+  <h2>Add a host to monitor</h2>
+  <input type="text" id="hostInput" placeholder="e.g. 8.8.8.8">
+  <button id="addHostBtn">Add</button>
+  <p id="message"></p>
+</div>
+
+<script>
+document.getElementById("addHostBtn").addEventListener("click", async () => {
+    const host = document.getElementById("hostInput").value.trim();
+    const msg = document.getElementById("message");
+    if (!host) return;
+    try {
+        const res = await fetch("/api/add_host", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({host})
+        });
+        const data = await res.json();
+        if (res.ok) {
+            msg.innerText = data.message;
+            document.getElementById("hostInput").value = "";
+            // After adding the first host, reload the page to show the full dashboard
+            setTimeout(() => { location.reload(); }, 1000);
+        } else {
+            msg.innerText = data.error;
+        }
+    } catch (e) {
+        msg.innerText = "Server error";
+    }
+});
+</script>
+</body>
+</html>
